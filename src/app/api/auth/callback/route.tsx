@@ -69,6 +69,12 @@ export async function GET(request: Request) {
     password = process.env.CLOUDNET_ACCESS_PASSWORD;
   }
 
+  if (!username || !password) {
+    return new Response(`You are not authorized to access this panel.`, {
+      status: 403,
+    });
+  }
+
   const signinResponse = await fetch(`http://127.0.0.1:3000/api/auth/signin`, {
     method: "POST",
     headers: {

@@ -1,9 +1,5 @@
-import Client from './page.client'
+import { redirect } from "next/navigation";
 
 export default async function Page() {
-  return (
-    <div className={'h-svh w-full'}>
-      <Client />
-    </div>
-  )
+  return redirect(`/api/auth/redirect`);
 }

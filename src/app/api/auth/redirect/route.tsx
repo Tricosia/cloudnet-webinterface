@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     secure: true,
     sameSite: "lax",
     maxAge: 60 * 5,
+    path: "/",
   });
 
   const queryParams = new URLSearchParams({

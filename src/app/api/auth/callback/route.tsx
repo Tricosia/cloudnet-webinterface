@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   const keycloakClientId = process.env.KEYCLOAK_CLIENT_ID;
   const keycloakClientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
 
-  const origin = new URL(request.url).origin;
+  const origin = process.env.NEXT_PUBLIC_DOMAIN;
   const redirectUri = `${origin}/api/auth/callback`;
 
   const tokenUrl = `${keycloakUrl}/realms/${keycloakRealm}/protocol/openid-connect/token`;
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     password = process.env.CLOUDNET_ACCESS_PASSWORD;
   }
 
-  const signinResponse = await fetch(`${origin}/api/auth/signin`, {
+  const signinResponse = await fetch(`http://127.0.0.1:3000/api/auth/signin`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

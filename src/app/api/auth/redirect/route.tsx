@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   const keycloakUrl = process.env.KEYCLOAK_URL;
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     state: state,
   }).toString();
 
-  return Response.redirect(
+  return NextResponse.redirect(
     `${keycloakUrl}/realms/${keycloakRealm}/protocol/openid-connect/auth?${queryParams}`,
     302,
   );

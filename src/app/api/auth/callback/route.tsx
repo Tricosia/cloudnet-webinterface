@@ -69,6 +69,18 @@ export async function GET(request: Request) {
     password = process.env.CLOUDNET_ACCESS_PASSWORD;
   }
 
+  // ==========================================
+  // DEBUGGING START: Check Roles & Credentials
+  // ==========================================
+  console.log("=== KEYCLOAK LOGIN DEBUG ===");
+  console.log("Roles found in token:", roles);
+  console.log("Selected CloudNet user:", username);
+  console.log(
+    "Password resolved?:",
+    password ? "Yes" : "No (Check your .env file!)",
+  );
+  // ==========================================
+
   if (!username || !password) {
     return new Response(`You are not authorized to access this panel.`, {
       status: 403,
@@ -85,7 +97,16 @@ export async function GET(request: Request) {
   });
 
   if (!signinResponse.ok) {
-    return new Response("Failed to sign in", {
+    // ==========================================
+    // DEBUGGING START: Sign-in Error Details
+    // ==========================================
+    const signinErrorText = await signinResponse.text();
+    console.error("=== SIGNIN FAILED ===");
+    console.error("HTTP status from /signin:", signinResponse.status);
+    console.error("Response body from /signin:", signinErrorText);
+    // ==========================================
+
+    return new Response(`Failed to sign in.`, {
       status: 500,
     });
   }

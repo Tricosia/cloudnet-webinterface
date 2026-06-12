@@ -99,22 +99,10 @@ export default function ServiceConsole({
         throw new Error(`Invalid ticket: ${ticket} (type: ${typeof ticket})`);
       }
 
-      const cookies = await authApi.getCookies();
-      const cookieAddress = decodeURIComponent(cookies["add"]);
-      const protocol = cookieAddress.startsWith("https") ? "wss" : "ws";
-      const address = window.location.origin;
-      const domainUrlProtocol = window.location.origin.startsWith("https")
+      const protocol = window.location.origin.startsWith("https")
         ? "wss"
         : "ws";
-
-      // Only block if both are HTTPS/WSS and there's a mismatch
-      // Allow HTTP/WS connections even if there's a protocol mismatch for development
-      if (protocol === "wss" && domainUrlProtocol === "ws") {
-        console.warn(
-          "Protocol mismatch: Backend uses WSS but frontend uses WS. This may cause issues in production.",
-        );
-        // For development, we'll still try to connect but warn the user
-      }
+      const address = window.location.origin.replace("https://", "");
 
       const socketUrl = `${protocol}://${address}/ws${webSocketPath}?ticket=${ticket}`;
 

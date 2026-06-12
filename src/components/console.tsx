@@ -1,236 +1,247 @@
-'use client'
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react'
-import { ChevronRight, Terminal, Download, Trash, Filter } from 'lucide-react'
-import { authApi, serviceApi } from '@/lib/client-api'
-import { Alert, AlertDescription, AlertTitle } from './ui/alert'
-import { Button } from './ui/button'
+import React, { useState, useRef, useEffect } from "react";
+import { ChevronRight, Terminal, Download, Trash, Filter } from "lucide-react";
+import { authApi, serviceApi } from "@/lib/client-api";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Button } from "./ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
-} from './ui/dropdown-menu'
-import { toast } from 'sonner'
-import { useTranslations } from 'gt-next/client'
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { toast } from "sonner";
+import { useTranslations } from "gt-next/client";
 
 interface ConsoleEntry {
-  output: string
+  output: string;
 }
 
 interface ServiceConsoleProps {
-  webSocketPath: string
-  serviceName?: string
-  disableCommands?: boolean
-  type?: 'service' | 'node'
+  webSocketPath: string;
+  serviceName?: string;
+  disableCommands?: boolean;
+  type?: "service" | "node";
 }
 
 const applyStyles = (text: string) => {
   // Remove ASCII escape sequences
-  const cleanText = text.replace(/\x1b\[[0-9;]*m/g, '')
+  const cleanText = text.replace(/\x1b\[[0-9;]*m/g, "");
 
   // Match log levels in all formats
   if (
     /^\[.*?(WARN|WARNING)\]|^\[.*?(WARN|WARNING)\]:|^\[\d+\.\d+\s+\d+:\d+:\d+\.\d+\]\s+(WARN|WARNING)\s*:/.test(
-      cleanText
+      cleanText,
     )
   ) {
-    return <span style={{ color: 'orange' }}>{cleanText}</span>
+    return <span style={{ color: "orange" }}>{cleanText}</span>;
   } else if (
     /^\[.*?ERROR\]|^\[.*?ERROR\]:|^\[\d+\.\d+\s+\d+:\d+:\d+\.\d+\]\s+ERROR\s*:/.test(
-      cleanText
+      cleanText,
     )
   ) {
-    return <span style={{ color: 'red' }}>{cleanText}</span>
+    return <span style={{ color: "red" }}>{cleanText}</span>;
   } else if (
     /^\[.*?INFO\]|^\[.*?INFO\]:|^\[\d+\.\d+\s+\d+:\d+:\d+\.\d+\]\s+INFO\s*:/.test(
-      cleanText
+      cleanText,
     )
   ) {
-    return <span style={{ color: 'darkcyan' }}>{cleanText}</span>
+    return <span style={{ color: "darkcyan" }}>{cleanText}</span>;
   }
-  return <span>{cleanText}</span>
-}
+  return <span>{cleanText}</span>;
+};
 
 export default function ServiceConsole({
   webSocketPath,
   serviceName,
   disableCommands = false,
-  type
+  type,
 }: ServiceConsoleProps) {
-  const [history, setHistory] = useState<ConsoleEntry[]>([])
-  const [input, setInput] = useState('')
-  const [filter, setFilter] = useState<'ALL' | 'INFO' | 'WARN' | 'ERROR'>('ALL') // Default filter is ALL
-  const consoleEndRef = useRef<HTMLDivElement>(null)
-  const [socketBlocked, setSocketBlocked] = useState(false)
-  const consoleT = useTranslations('Console')
-  const hasFetchedLogsRef = useRef(false)
-  const socketRef = useRef<WebSocket | null>(null)
-  const MAX_RECONNECT_ATTEMPTS = 10
-  const RECONNECT_BASE_DELAY_MS = 1000
-  const reconnectAttempt = useRef<number>(0)
-  const reconnectTimer = useRef<number | null>(null)
+  const [history, setHistory] = useState<ConsoleEntry[]>([]);
+  const [input, setInput] = useState("");
+  const [filter, setFilter] = useState<"ALL" | "INFO" | "WARN" | "ERROR">(
+    "ALL",
+  ); // Default filter is ALL
+  const consoleEndRef = useRef<HTMLDivElement>(null);
+  const [socketBlocked, setSocketBlocked] = useState(false);
+  const consoleT = useTranslations("Console");
+  const hasFetchedLogsRef = useRef(false);
+  const socketRef = useRef<WebSocket | null>(null);
+  const MAX_RECONNECT_ATTEMPTS = 10;
+  const RECONNECT_BASE_DELAY_MS = 1000;
+  const reconnectAttempt = useRef<number>(0);
+  const reconnectTimer = useRef<number | null>(null);
 
   const initializeSocket = async () => {
-    if (socketRef.current) return // Prevent re-initialization
+    if (socketRef.current) return; // Prevent re-initialization
 
     try {
-      const ticketResponse = await authApi.createTicket(type)
-      
+      const ticketResponse = await authApi.createTicket(type);
+
       // Check if the response is an error
-      if (ticketResponse && typeof ticketResponse === 'object' && 'status' in ticketResponse && ticketResponse.status >= 400) {
-        throw new Error(`Ticket creation failed: ${ticketResponse.title || ticketResponse.detail || 'Unknown error'}`)
+      if (
+        ticketResponse &&
+        typeof ticketResponse === "object" &&
+        "status" in ticketResponse &&
+        ticketResponse.status >= 400
+      ) {
+        throw new Error(
+          `Ticket creation failed: ${ticketResponse.title || ticketResponse.detail || "Unknown error"}`,
+        );
       }
-      
+
       // Handle different response formats
-      const ticket = ticketResponse.secret
-      
+      const ticket = ticketResponse.secret;
+
       // Validate ticket
-      if (!ticket || typeof ticket !== 'string') {
-        throw new Error(`Invalid ticket: ${ticket} (type: ${typeof ticket})`)
+      if (!ticket || typeof ticket !== "string") {
+        throw new Error(`Invalid ticket: ${ticket} (type: ${typeof ticket})`);
       }
-      
-      const cookies = await authApi.getCookies()
-      const cookieAddress = decodeURIComponent(cookies['add'])
-      const protocol = cookieAddress.startsWith('https') ? 'wss' : 'ws'
-      const address = cookieAddress.replace(/^(http:\/\/|https:\/\/)/, '')
-      const domainUrlProtocol = window.location.origin.startsWith('https')
-        ? 'wss'
-        : 'ws'
+
+      const cookies = await authApi.getCookies();
+      const cookieAddress = decodeURIComponent(cookies["add"]);
+      const protocol = cookieAddress.startsWith("https") ? "wss" : "ws";
+      const address = window.location.origin;
+      const domainUrlProtocol = window.location.origin.startsWith("https")
+        ? "wss"
+        : "ws";
 
       // Only block if both are HTTPS/WSS and there's a mismatch
       // Allow HTTP/WS connections even if there's a protocol mismatch for development
-      if (protocol === 'wss' && domainUrlProtocol === 'ws') {
-        console.warn('Protocol mismatch: Backend uses WSS but frontend uses WS. This may cause issues in production.')
+      if (protocol === "wss" && domainUrlProtocol === "ws") {
+        console.warn(
+          "Protocol mismatch: Backend uses WSS but frontend uses WS. This may cause issues in production.",
+        );
         // For development, we'll still try to connect but warn the user
       }
 
-      const socketUrl = `${protocol}://${address}${webSocketPath}?ticket=${ticket}`
+      const socketUrl = `${protocol}://${address}/ws${webSocketPath}?ticket=${ticket}`;
 
       try {
-        socketRef.current = new WebSocket(socketUrl)
+        socketRef.current = new WebSocket(socketUrl);
       } catch (error) {
-        console.error('WebSocket construction error:', error)
-        setSocketBlocked(true)
-        return
+        console.error("WebSocket construction error:", error);
+        setSocketBlocked(true);
+        return;
       }
 
       socketRef.current.onopen = (event) => {
         // Reset reconnect state on successful open
-        console.log('WebSocket connection opened')
-        reconnectAttempt.current = 0
+        console.log("WebSocket connection opened");
+        reconnectAttempt.current = 0;
         if (reconnectTimer.current) {
-          clearTimeout(reconnectTimer.current)
-          reconnectTimer.current = null
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
         }
-      }
+      };
 
       socketRef.current.onmessage = (event) => {
         const newEntry: ConsoleEntry = {
-          output: event.data
-        }
-        setHistory((prev) => [...prev, newEntry])
-      }
-      
+          output: event.data,
+        };
+        setHistory((prev) => [...prev, newEntry]);
+      };
+
       socketRef.current.onclose = (event) => {
         // Attempt automatic reconnect with exponential backoff
         if (reconnectAttempt.current < MAX_RECONNECT_ATTEMPTS) {
           const delay = Math.min(
             30000,
-            RECONNECT_BASE_DELAY_MS * Math.pow(2, reconnectAttempt.current)
-          )
-          reconnectAttempt.current += 1
-          console.log('Attempting reconnect...')
+            RECONNECT_BASE_DELAY_MS * Math.pow(2, reconnectAttempt.current),
+          );
+          reconnectAttempt.current += 1;
+          console.log("Attempting reconnect...");
           // Schedule reconnect
           reconnectTimer.current = window.setTimeout(() => {
-            initializeSocket()
-          }, delay) as unknown as number
+            initializeSocket();
+          }, delay) as unknown as number;
         }
-      }
+      };
     } catch (error) {
-      setSocketBlocked(true)
+      setSocketBlocked(true);
     }
-  }
+  };
 
   useEffect(() => {
     const cachedLogLines = async () => {
-      if (hasFetchedLogsRef.current) return
-      hasFetchedLogsRef.current = true
+      if (hasFetchedLogsRef.current) return;
+      hasFetchedLogsRef.current = true;
 
-      if (type === 'service' && serviceName) {
+      if (type === "service" && serviceName) {
         try {
-          const cache = (await serviceApi.logLines(serviceName)).data
-          setHistory(cache.lines.map((line) => ({ output: line })))
+          const cache = (await serviceApi.logLines(serviceName)).data;
+          setHistory(cache.lines.map((line) => ({ output: line })));
         } catch (error) {
-          toast.error(consoleT('fetchError'))
+          toast.error(consoleT("fetchError"));
         }
       }
-    }
+    };
 
-    cachedLogLines().then(initializeSocket)
+    cachedLogLines().then(initializeSocket);
 
     return () => {
       if (socketRef.current) {
-        socketRef.current.close()
+        socketRef.current.close();
       }
       if (reconnectTimer.current) {
-        clearTimeout(reconnectTimer.current)
-        reconnectTimer.current = null
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
       }
-    }
-  }, [consoleT, webSocketPath, serviceName, type])
+    };
+  }, [consoleT, webSocketPath, serviceName, type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (input.trim() && serviceName) {
       try {
-        await serviceApi.execute(serviceName, input)
-        setInput('')
+        await serviceApi.execute(serviceName, input);
+        setInput("");
       } catch (error) {
-        toast.error(consoleT('commandError'))
+        toast.error(consoleT("commandError"));
       }
     }
-  }
+  };
 
   useEffect(() => {
-    consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [history])
+    consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [history]);
 
   // Function to download console logs
   const handleDownloadLogs = () => {
-    const logContent = history.map((entry) => entry.output).join('\n')
-    const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${serviceName || 'console'}-logs.txt`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
+    const logContent = history.map((entry) => entry.output).join("\n");
+    const blob = new Blob([logContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${serviceName || "console"}-logs.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Function to clear console logs
   const handleClearLogs = () => {
-    setHistory([])
-  }
+    setHistory([]);
+  };
 
   // Function to filter logs
   const filteredHistory = history.filter((entry) => {
-    if (filter === 'ALL') return true
+    if (filter === "ALL") return true;
     // Match the same pattern as the styling
     const regex = new RegExp(
-      `^\\[.*?(${filter})\\]|^\\[.*?(${filter})\\]:|^\\[\\d+\\.\\d+\\s+\\d+:\\d+:\\d+\\.\\d+\\]\\s+${filter}\\s*:`
-    )
-    return regex.test(entry.output)
-  })
+      `^\\[.*?(${filter})\\]|^\\[.*?(${filter})\\]:|^\\[\\d+\\.\\d+\\s+\\d+:\\d+:\\d+\\.\\d+\\]\\s+${filter}\\s*:`,
+    );
+    return regex.test(entry.output);
+  });
 
   return (
     <>
       {socketBlocked && (
         <Alert className="my-4">
           <Terminal className="h-4 w-4" />
-          <AlertTitle>{consoleT('headsUp')}</AlertTitle>
-          <AlertDescription>{consoleT('protocolMismatch')}</AlertDescription>
+          <AlertTitle>{consoleT("headsUp")}</AlertTitle>
+          <AlertDescription>{consoleT("protocolMismatch")}</AlertDescription>
         </Alert>
       )}
       <div className="w-full mx-auto h-[80vh] bg-gray-800 text-gray-200 rounded-lg overflow-hidden flex flex-col">
@@ -242,20 +253,20 @@ export default function ServiceConsole({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
                   <Filter className="mr-2 h-4 w-4" />
-                  {consoleT('filter')}: {filter}
+                  {consoleT("filter")}: {filter}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => setFilter('ALL')}>
-                  {consoleT('filterAll') || 'ALL'}
+                <DropdownMenuItem onClick={() => setFilter("ALL")}>
+                  {consoleT("filterAll") || "ALL"}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilter('INFO')}>
+                <DropdownMenuItem onClick={() => setFilter("INFO")}>
                   INFO
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilter('WARN')}>
+                <DropdownMenuItem onClick={() => setFilter("WARN")}>
                   WARN
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilter('ERROR')}>
+                <DropdownMenuItem onClick={() => setFilter("ERROR")}>
                   ERROR
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -266,11 +277,11 @@ export default function ServiceConsole({
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleClearLogs}>
               <Trash className="h-4 w-4" />
-              {consoleT('clearLogs')}
+              {consoleT("clearLogs")}
             </Button>
             <Button variant="outline" onClick={handleDownloadLogs}>
               <Download className="h-4 w-4" />
-              {consoleT('downloadLogs')}
+              {consoleT("downloadLogs")}
             </Button>
           </div>
         </div>
@@ -293,12 +304,12 @@ export default function ServiceConsole({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 className="flex-1 bg-transparent outline-none text-gray-200 font-mono"
-                placeholder={consoleT('commandPlaceholder')}
+                placeholder={consoleT("commandPlaceholder")}
               />
             </div>
           </form>
         )}
       </div>
     </>
-  )
+  );
 }
